@@ -1,0 +1,2347 @@
+<!DOCTYPE html>
+
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>练题系统</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #F0F2F5;
+  --surface: #FFFFFF;
+  --primary: #4A6CF7;
+  --primary-light: #EEF1FE;
+  --text: #1A1D23;
+  --muted: #8B909A;
+  --border: #E4E7EF;
+  --green-bg: #E8F7EE;
+  --green: #22A854;
+  --red-bg: #FDECEA;
+  --red: #E03B3B;
+  --yellow: #F5A623;
+  --yellow-bg: #FEF8EC;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.07);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.10);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── PAGE SYSTEM ── */
+.page { display: none; min-height: 100vh; flex-direction: column; }
+.page.active { display: flex; }
+
+/* ── TOP BAR ── */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  flex-shrink: 0;
+}
+.topbar h2 { font-size: 17px; font-weight: 700; flex: 1; }
+.back-btn {
+  width: 36px; height: 36px;
+  border: none; background: var(--bg);
+  border-radius: var(--radius-sm);
+  cursor: pointer; font-size: 20px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text); flex-shrink: 0;
+}
+.back-btn:active { opacity: 0.6; }
+
+/* ── HOME ── */
+#home .content { padding: 24px 16px; flex: 1; }
+.home-title { font-size: 26px; font-weight: 800; margin-bottom: 6px; letter-spacing: -0.5px; }
+.home-sub { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+.home-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.home-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 28px 16px 22px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  border: 2px solid transparent;
+  transition: border-color 0.15s, transform 0.1s;
+  user-select: none;
+}
+.home-card:active { transform: scale(0.96); }
+.home-card .icon { font-size: 34px; margin-bottom: 10px; }
+.home-card .label { font-size: 16px; font-weight: 600; }
+.home-card:hover { border-color: var(--primary); }
+
+/* ── BANK ── */
+#bank .content { padding: 16px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.bank-empty { text-align: center; color: var(--muted); padding: 60px 20px; font-size: 14px; line-height: 2; }
+.bank-empty .icon { font-size: 48px; margin-bottom: 12px; }
+
+.quiz-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 14px 18px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.1s;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+.quiz-card:active { transform: scale(0.98); }
+.qc-icon {
+  width: 44px; height: 44px;
+  background: var(--primary-light);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.qc-info { flex: 1; min-width: 0; }
+.qc-title { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qc-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.card-btn {
+  padding: 6px 10px; font-size: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg); border-radius: 6px;
+  cursor: pointer; color: var(--text); white-space: nowrap;
+}
+.card-btn.danger { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+.card-btn:active { opacity: 0.6; }
+.qc-progress { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--border); }
+.qc-progress-bar { height: 100%; background: var(--primary); transition: width 0.3s; }
+
+/* wrong bank card */
+.wrong-bank-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 11px 14px 14px;
+  margin-bottom: 18px;
+  margin-top: -6px;
+  margin-left: 20px;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: transform 0.1s;
+  user-select: none;
+  border-left: 3px solid var(--red);
+  position: relative;
+  overflow: hidden;
+}
+.wrong-bank-card:active { transform: scale(0.98); }
+.wbc-icon {
+  width: 36px; height: 36px;
+  background: var(--red-bg);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.wbc-info { flex: 1; min-width: 0; }
+.wbc-title { font-size: 13px; font-weight: 600; color: var(--red); }
+.wbc-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.wbc-arrow { font-size: 16px; color: var(--muted); flex-shrink: 0; }
+
+/* ── IMPORT ── */
+#import .content { padding: 16px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.import-section {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow);
+}
+.import-section h4 { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+.note-text { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height: 1.6; }
+.copy-prompt {
+  background: var(--primary-light); border-radius: var(--radius-sm);
+  padding: 12px; font-size: 12px; line-height: 1.9;
+  font-family: monospace; white-space: pre-wrap;
+  border: 1px dashed var(--primary); margin-bottom: 10px; color: var(--text);
+}
+
+/* file drop zone */
+.file-drop {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--bg);
+  position: relative;
+}
+.file-drop:hover, .file-drop.drag-over {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.file-drop input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.file-drop-icon { font-size: 32px; margin-bottom: 8px; }
+.file-drop-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.file-drop-sub { font-size: 12px; color: var(--muted); }
+.file-status {
+  margin-top: 10px; font-size: 13px; font-weight: 600;
+  padding: 8px 12px; border-radius: var(--radius-sm);
+  display: none;
+}
+.file-status.ok { background: var(--green-bg); color: var(--green); display: block; }
+.file-status.err { background: var(--red-bg); color: var(--red); display: block; }
+.file-status.loading { background: var(--primary-light); color: var(--primary); display: block; }
+
+/* ── SMART PARSE PREVIEW ── */
+.preview-stats {
+  font-size: 13px; color: var(--muted);
+  padding: 6px 0 12px; line-height: 1.8;
+}
+.preview-item {
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  margin-bottom: 8px; overflow: hidden;
+}
+.preview-item.conf-high   { border-left: 4px solid var(--green); }
+.preview-item.conf-medium { border-left: 4px solid var(--yellow); }
+.preview-item.conf-low    { border-left: 4px solid var(--red); }
+.preview-item.skipped     { opacity: 0.4; }
+.preview-item-head {
+  padding: 10px 12px;
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; background: var(--bg);
+  font-size: 13px; user-select: none;
+}
+.preview-item-head-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preview-item-body {
+  padding: 12px; background: var(--surface);
+  border-top: 1px solid var(--border); display: none;
+}
+.preview-item.open .preview-item-body { display: block; }
+.preview-tag {
+  font-size: 11px; font-weight: 700;
+  padding: 2px 7px; border-radius: 100px; flex-shrink: 0;
+}
+.preview-tag.single     { background: #EEF1FE; color: var(--primary); }
+.preview-tag.multiple   { background: #FEF3E2; color: #D97706; }
+.preview-tag.subjective { background: #E8F7EE; color: var(--green); }
+.conf-badge {
+  font-size: 11px; padding: 2px 6px;
+  border-radius: 100px; background: var(--red-bg);
+  color: var(--red); font-weight: 600; flex-shrink: 0;
+}
+.edit-label {
+  font-size: 11px; font-weight: 700;
+  color: var(--muted); margin-top: 10px; display: block;
+}
+.edit-field {
+  width: 100%; border: 1.5px solid var(--border);
+  border-radius: 6px; padding: 7px 10px;
+  font-size: 13px; background: var(--bg);
+  color: var(--text); outline: none; margin-top: 4px;
+  font-family: inherit;
+}
+.edit-field:focus { border-color: var(--primary); }
+.edit-row { display: flex; gap: 8px; align-items: flex-end; margin-top: 4px; }
+.preview-skip-btn {
+  font-size: 12px; padding: 5px 10px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--muted);
+  cursor: pointer; white-space: nowrap; margin-top: 12px;
+}
+.preview-skip-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.btn {
+  padding: 12px 18px; border: none;
+  border-radius: var(--radius-sm); background: var(--primary);
+  color: white; font-size: 14px; font-weight: 600;
+  cursor: pointer; flex: 1; min-width: 80px; text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s;
+}
+.btn:active { opacity: 0.75; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.btn.ghost { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+.btn.danger-btn { background: var(--red); }
+textarea {
+  width: 100%; height: 200px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 12px; font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  resize: vertical; background: var(--bg); color: var(--text); outline: none; line-height: 1.7;
+}
+textarea:focus { border-color: var(--primary); }
+.text-input {
+  width: 100%; border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); padding: 11px 12px;
+  font-size: 15px; outline: none; background: var(--bg); color: var(--text);
+  margin-top: 10px;
+}
+.text-input:focus { border-color: var(--primary); }
+
+/* ── QUIZ PAGE ── */
+#quiz { min-height: 100vh; }
+#quiz .content { padding: 16px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+.quiz-topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 12px 16px; display: flex; align-items: center;
+  gap: 12px; position: sticky; top: 0; z-index: 100; flex-shrink: 0;
+}
+.quiz-meta { flex: 1; min-width: 0; }
+.quiz-name-label { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quiz-pos-label { font-size: 15px; font-weight: 700; margin-top: 1px; }
+.progress-bar-wrap { height: 4px; background: var(--border); overflow: hidden; flex-shrink: 0; }
+.progress-bar-fill { height: 100%; background: var(--primary); transition: width 0.3s ease-out; }
+
+/* question dots */
+.q-dots-wrap {
+  display: flex; gap: 5px; flex-wrap: wrap;
+  padding: 10px 16px 0;
+}
+.q-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--border); flex-shrink: 0; cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+.q-dot:hover { transform: scale(1.3); }
+.q-dot.correct { background: var(--green); }
+.q-dot.wrong { background: var(--red); }
+.q-dot.current { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* question card */
+.question-card {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 18px; margin-bottom: 14px; box-shadow: var(--shadow);
+}
+.question-type-tag {
+  display: inline-block; font-size: 11px; font-weight: 700;
+  padding: 3px 9px; border-radius: 100px; margin-bottom: 10px; letter-spacing: 0.5px;
+}
+.tag-single { background: #EEF1FE; color: var(--primary); }
+.tag-multiple { background: #FEF3E2; color: #D97706; }
+.tag-subjective { background: #E8F7EE; color: var(--green); }
+.question-text { font-size: 16px; font-weight: 600; line-height: 1.65; color: var(--text); }
+
+.options-wrap { margin-top: 16px; }
+.option {
+  padding: 13px 14px;
+  margin-bottom: 10px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #FAFBFF;
+  font-size: 15px; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s, box-shadow 0.15s;
+  user-select: none; line-height: 1.5;
+  -webkit-tap-highlight-color: transparent;
+  display: flex; align-items: flex-start; gap: 10px;
+}
+@media (hover: hover) {
+  .option:not(.disabled):hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(74,108,247,0.15);
+  }
+}
+.option:not(.disabled):active { transform: scale(0.985); box-shadow: none; }
+.option.disabled { cursor: default; }
+
+/* option letter badge */
+.opt-letter {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--primary);
+  background: white;
+  color: var(--primary);
+  font-weight: 700; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+.opt-text { flex: 1; }
+.opt-icon { flex-shrink: 0; font-size: 16px; min-width: 20px; text-align: right; }
+
+/* option states */
+.option.opt-selected { border-color: var(--primary); background: var(--primary-light); }
+.option.opt-selected .opt-letter { background: var(--primary); color: white; border-color: var(--primary); }
+
+.option.opt-green { border-color: var(--green); background: var(--green-bg); }
+.option.opt-green .opt-letter { background: var(--green); border-color: var(--green); color: white; }
+
+.option.opt-red { border-color: var(--red); background: var(--red-bg); }
+.option.opt-red .opt-letter { background: var(--red); border-color: var(--red); color: white; }
+
+.option.opt-missed { border: 2px dashed var(--green); background: #f0fdf4; }
+.option.opt-missed .opt-letter { border-color: var(--green); color: var(--green); background: white; }
+.missed-tag {
+  font-size: 11px; font-weight: 700; color: var(--green);
+  background: #d1fae5; padding: 2px 7px; border-radius: 100px;
+  white-space: nowrap;
+}
+
+/* multi-select hint */
+.multi-hint {
+  font-size: 12px; color: var(--muted);
+  margin-bottom: 8px; padding: 0 2px;
+}
+
+/* answer summary */
+.answer-summary {
+  margin-top: 14px; font-size: 13px; font-weight: 600;
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  line-height: 1.6;
+}
+.summary-correct { background: #e8f7ee; color: var(--green); }
+.summary-wrong { background: #fdecea; color: var(--red); }
+.summary-mixed { background: #fef8ec; color: #d97706; }
+
+.subjective-answer {
+  margin-top: 16px; background: var(--bg);
+  border-radius: var(--radius-sm); padding: 14px;
+  font-size: 14px; line-height: 1.75; color: var(--text);
+  border: 1px solid var(--border);
+}
+.subjective-label { font-size: 12px; font-weight: 700; color: var(--green); margin-bottom: 6px; }
+
+.submit-btn-wrap { margin-top: 14px; }
+
+.nav-bar {
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 10px 16px; display: flex; gap: 10px;
+  position: sticky; bottom: 0; flex-shrink: 0;
+}
+.nav-bar .btn { flex: 1; }
+
+/* ── slide animations ── */
+/* ── 跳题过渡：弹性滑入 ── */
+@keyframes slideInFromRight {
+  0%   { transform: translateX(56px) scale(0.97); opacity: 0; }
+  60%  { transform: translateX(-6px) scale(1.01); opacity: 1; }
+  80%  { transform: translateX(3px)  scale(0.995); }
+  100% { transform: translateX(0)    scale(1); opacity: 1; }
+}
+@keyframes slideInFromLeft {
+  0%   { transform: translateX(-56px) scale(0.97); opacity: 0; }
+  60%  { transform: translateX(6px)   scale(1.01); opacity: 1; }
+  80%  { transform: translateX(-3px)  scale(0.995); }
+  100% { transform: translateX(0)     scale(1); opacity: 1; }
+}
+.slide-in-right { animation: slideInFromRight 0.38s cubic-bezier(0.34,1.56,0.64,1); }
+.slide-in-left  { animation: slideInFromLeft  0.38s cubic-bezier(0.34,1.56,0.64,1); }
+
+/* ── 选项出现 stagger ── */
+@keyframes revealOpt {
+  from { transform: translateY(10px) scale(0.97); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+.reveal { animation: revealOpt 0.28s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+/* ── 答对弹跳 ── */
+@keyframes optBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.06); }
+  60%  { transform: scale(0.97); }
+  80%  { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+.opt-bounce { animation: optBounce 0.45s cubic-bezier(0.34,1.56,0.64,1); }
+
+/* ── 答错抖动 ── */
+@keyframes optShake {
+  0%,100% { transform: translateX(0); }
+  15%  { transform: translateX(-7px); }
+  30%  { transform: translateX(6px); }
+  45%  { transform: translateX(-5px); }
+  60%  { transform: translateX(4px); }
+  75%  { transform: translateX(-2px); }
+}
+.opt-shake { animation: optShake 0.4s ease; }
+
+/* ── 进度点答对弹出 ── */
+@keyframes dotPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.7); }
+  70%  { transform: scale(0.85); }
+  100% { transform: scale(1); }
+}
+.dot-pop { animation: dotPop 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+
+/* ── 涟漪 ── */
+@keyframes rippleSpread {
+  to { transform: scale(4); opacity: 0; }
+}
+.ripple-el {
+  position: absolute; border-radius: 50%;
+  background: rgba(74,108,247,0.18);
+  width: 60px; height: 60px;
+  margin-top: -30px; margin-left: -30px;
+  pointer-events: none;
+  animation: rippleSpread 0.55s ease-out forwards;
+}
+
+/* ── RESULT ── */
+#result .content { padding: 16px; flex: 1; overflow-y: auto; }
+.result-card {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 30px 24px; text-align: center;
+  box-shadow: var(--shadow-md); margin-bottom: 14px;
+}
+.result-emoji { font-size: 56px; margin-bottom: 12px; }
+.result-score { font-size: 52px; font-weight: 800; color: var(--primary); letter-spacing: -2px; }
+.result-label { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.result-detail { margin-top: 18px; font-size: 14px; color: var(--muted); line-height: 2; }
+.result-pct { font-size: 22px; font-weight: 700; color: var(--text); margin-top: 8px; }
+
+/* wrong review */
+.wrong-review-title {
+  font-size: 15px; font-weight: 700; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+.wrong-item {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 14px 16px; margin-bottom: 10px;
+  box-shadow: var(--shadow); border-left: 4px solid var(--red);
+}
+.wrong-q { font-size: 14px; font-weight: 600; margin-bottom: 8px; line-height: 1.5; }
+.wrong-row { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.wrong-row .hl-green { color: var(--green); font-weight: 600; }
+.wrong-row .hl-red   { color: var(--red);   font-weight: 600; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45); z-index: 200;
+  align-items: flex-end; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal-box {
+  background: var(--surface); border-radius: 20px 20px 0 0;
+  padding: 20px 20px calc(env(safe-area-inset-bottom, 0px) + 28px);
+  width: 100%; max-width: 480px;
+}
+.modal-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+.modal-body { font-size: 14px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+.modal-actions { display: flex; gap: 10px; }
+.modal-input {
+  width: 100%; border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); padding: 11px 12px;
+  font-size: 15px; outline: none; margin-bottom: 14px;
+  background: var(--bg); color: var(--text);
+}
+.modal-input:focus { border-color: var(--primary); }
+
+/* ── TOAST ── */
+.toast-el {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+  background: #1a1d23cc; backdrop-filter: blur(8px);
+  color: #fff; padding: 10px 20px; border-radius: 100px;
+  font-size: 13px; z-index: 999; pointer-events: none;
+  white-space: nowrap; transition: opacity 0.3s;
+}
+</style>
+
+</head>
+<body>
+
+<!-- ══ HOME ══ -->
+
+<div id="home" class="page active">
+  <div class="content">
+    <div class="home-title">练题系统</div>
+    <div class="home-sub">高效刷题，随时随地</div>
+    <div class="home-cards">
+      <div class="home-card" onclick="showBank()">
+        <div class="icon">📚</div>
+        <div class="label">题库</div>
+      </div>
+      <div class="home-card" onclick="showImport()">
+        <div class="icon">📥</div>
+        <div class="label">导入</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ BANK ══ -->
+
+<div id="bank" class="page">
+  <div class="topbar">
+    <button class="back-btn" onclick="showPage('home')">‹</button>
+    <h2>题库</h2>
+  </div>
+  <div class="content" id="bankList"></div>
+</div>
+
+<!-- ══ IMPORT ══ -->
+
+<div id="import" class="page">
+  <div class="topbar">
+    <button class="back-btn" onclick="showPage('home')">‹</button>
+    <h2>导入题库</h2>
+  </div>
+  <div class="content">
+    <div class="import-section">
+      <h4>📁 上传文件</h4>
+      <p class="note-text">支持 .txt、.docx、.pdf，上传后自动提取文本并识别题目。如识别题数为 0，说明格式不规范，可将提取的文本发给 AI 整理后再粘贴导入。</p>
+      <div class="file-drop" id="fileDrop">
+        <input type="file" id="fileInput" accept=".txt,.docx,.pdf" onchange="handleFile(this.files[0])">
+        <div class="file-drop-icon">📄</div>
+        <div class="file-drop-label">点击或拖拽文件到此处</div>
+        <div class="file-drop-sub">.txt · .docx · .pdf</div>
+      </div>
+      <div class="file-status" id="fileStatus"></div>
+    </div>
+
+    <div class="import-section">
+      <h4>✏️ 粘贴 / 编辑文本</h4>
+      <p class="note-text">上传文件后文本会自动填入，也可直接粘贴规范格式文本。文本过长或格式混乱时，复制下方提示词发给 AI 整理后再导入。</p>
+      <textarea id="importText" placeholder="将规范格式题目粘贴到这里，或上传文件自动提取…" style="height:160px"></textarea>
+      <div style="margin-top:8px">
+        <button class="btn ghost" style="width:100%;padding:9px" onclick="togglePrompt()">📋 查看 / 复制 AI 整理提示词</button>
+        <div id="promptWrap" style="display:none;margin-top:8px">
+          <div class="copy-prompt" id="promptText">请你帮我把下面的题目整理为这个规范格式，严格按照示例输出，不要添加多余内容：
+
+【单选】题目内容
+A.选项一
+B.选项二
+C.选项三
+D.选项四
+答案：A
+
+【多选】多选题题干
+A.正确项
+B.错误项
+C.正确项
+答案：AC
+
+【主观】简答题题干
+参考答案：这里写标准答案</div>
+          <button class="btn ghost" onclick="copyPrompt()" style="width:100%;margin-top:0">复制提示词</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:12px;margin-bottom:4px">题库名称（留空则自动命名）</div>
+      <input class="text-input" id="importName" placeholder="例：第一章练习题" style="margin-top:4px">
+      <div class="btn-row">
+        <button class="btn" onclick="startRecognize()">🔍 开始识别</button>
+        <button class="btn secondary" onclick="clearImport()">清空</button>
+      </div>
+    </div>
+
+    <!-- 识别预览区，默认隐藏 -->
+    <div id="previewSection" class="import-section" style="display:none">
+      <h4>🧠 识别结果</h4>
+      <div id="previewStats" class="preview-stats"></div>
+      <div id="previewList"></div>
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn secondary" onclick="cancelPreview()">← 返回编辑</button>
+        <button class="btn" onclick="confirmImport()">确认导入</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ QUIZ ══ -->
+
+<div id="quiz" class="page">
+  <div class="quiz-topbar">
+    <button class="back-btn" onclick="leaveQuiz()">‹</button>
+    <div class="quiz-meta">
+      <div class="quiz-name-label" id="quizBankName"></div>
+      <div class="quiz-pos-label" id="quizPos"></div>
+    </div>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progressFill"></div>
+  </div>
+  <div class="q-dots-wrap" id="qDots"></div>
+  <div class="content" id="questionBox"></div>
+  <div class="nav-bar">
+    <button class="btn secondary" onclick="prevQ()">← 上一题</button>
+    <button class="btn secondary" onclick="nextQ()">下一题 →</button>
+  </div>
+</div>
+
+<!-- ══ RESULT ══ -->
+
+<div id="result" class="page">
+  <div class="topbar">
+    <button class="back-btn" onclick="leaveResult()">‹</button>
+    <h2>练习结果</h2>
+  </div>
+  <div class="content" id="resultContent"></div>
+</div>
+
+<!-- ══ MODAL: continue ══ -->
+
+<div class="modal-overlay" id="continueModal">
+  <div class="modal-box">
+    <div class="modal-title">继续上次？</div>
+    <div class="modal-body">上次做到第 <strong id="lastPos"></strong> 题，是否继续练习？</div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="startQuiz(pendingIdx, false)">重新开始</button>
+      <button class="btn" onclick="startQuiz(pendingIdx, true)">继续做题</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: rename ══ -->
+
+<div class="modal-overlay" id="renameModal">
+  <div class="modal-box">
+    <div class="modal-title">修改名称</div>
+    <input class="modal-input" id="renameInput" placeholder="输入新名称">
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('renameModal')">取消</button>
+      <button class="btn" onclick="doRename()">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: delete ══ -->
+
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-box">
+    <div class="modal-title">删除题库</div>
+    <div class="modal-body">确定删除「<span id="deleteTitle"></span>」吗？<br>此操作不可撤销，做题记录也将清除。</div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('deleteModal')">取消</button>
+      <button class="btn danger-btn" onclick="doDelete()">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: finish confirm ══ -->
+
+<div class="modal-overlay" id="finishModal">
+  <div class="modal-box">
+    <div class="modal-title">还有题未完成</div>
+    <div class="modal-body" id="finishModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeModal('finishModal')">继续做题</button>
+      <button class="btn" onclick="confirmFinish()">结算</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   DATA
+══════════════════════════════════════ */
+let data = JSON.parse(localStorage.getItem("quizBank") || "[]");
+function saveData() { localStorage.setItem("quizBank", JSON.stringify(data)); }
+
+/* ══════════════════════════════════════
+   PAGE NAV
+══════════════════════════════════════ */
+function showPage(id) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  const el = document.getElementById(id);
+  el.classList.add("active");
+  const c = el.querySelector(".content");
+  if (c) c.scrollTop = 0;
+}
+function showBank() { renderBank(); showPage("bank"); }
+function showImport() { showPage("import"); }
+
+/* ══════════════════════════════════════
+   MODALS
+══════════════════════════════════════ */
+function openModal(id) { document.getElementById(id).classList.add("show"); }
+function closeModal(id) { document.getElementById(id).classList.remove("show"); }
+document.querySelectorAll(".modal-overlay").forEach(el => {
+  el.addEventListener("click", e => { if (e.target === el) el.classList.remove("show"); });
+});
+
+/* ══════════════════════════════════════
+   TOAST
+══════════════════════════════════════ */
+/* ── 涟漪函数 ── */
+function addRipple(el, e) {
+  const r = document.createElement("div");
+  r.className = "ripple-el";
+  const rect = el.getBoundingClientRect();
+  r.style.left = (e.clientX - rect.left) + "px";
+  r.style.top  = (e.clientY - rect.top)  + "px";
+  el.appendChild(r);
+  r.addEventListener("animationend", () => r.remove());
+}
+
+let _toastEl = null;
+let _toastTimer = null;
+function toast(msg) {
+  if (!_toastEl) {
+    _toastEl = document.createElement("div");
+    _toastEl.className = "toast-el";
+    document.body.appendChild(_toastEl);
+  }
+  _toastEl.textContent = msg;
+  _toastEl.style.opacity = "1";
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { _toastEl.style.opacity = "0"; }, 1800);
+}
+
+/* ══════════════════════════════════════
+   COPY PROMPT
+══════════════════════════════════════ */
+function copyPrompt() {
+  const text = document.getElementById("promptText").innerText;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => toast("已复制！发给 AI 帮你整理格式吧 ✨"));
+  } else {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy");
+    document.body.removeChild(ta); toast("已复制！");
+  }
+}
+function clearImport() {
+  document.getElementById("importText").value = "";
+  document.getElementById("importName").value = "";
+  const s = document.getElementById("fileStatus");
+  s.className = "file-status"; s.textContent = "";
+  document.getElementById("fileInput").value = "";
+}
+
+/* ══════════════════════════════════════
+   IMPORT & PARSE
+══════════════════════════════════════ */
+function importData() {
+  const text = document.getElementById("importText").value.trim();
+  if (!text) { toast("请先粘贴题目文本"); return; }
+  const name = document.getElementById("importName").value.trim() || "题库 " + (data.length + 1);
+  const questions = parseQuestions(text);
+  if (questions.length === 0) { toast("未识别到题目，请检查格式是否正确"); return; }
+  data.push({ title: name, questions });
+  saveData();
+  clearImport();
+  toast(`✅ 导入成功！共 ${questions.length} 题`);
+  showBank();
+}
+
+function parseQuestions(text) {
+  const blocks = text.split(/\n[ \t]*\n/);
+  const questions = [];
+  blocks.forEach(b => {
+    const lines = b.trim().split("\n").map(l => l.trim()).filter(Boolean);
+    if (lines.length < 2) return;
+    const t = lines[0];
+    if (t.includes("【单选】")) { const q = parseSingle(lines); if (q) questions.push(q); }
+    else if (t.includes("【多选】")) { const q = parseMulti(lines); if (q) questions.push(q); }
+    else if (t.includes("【主观】")) { const q = parseSubject(lines); if (q) questions.push(q); }
+  });
+  return questions;
+}
+
+function parseSingle(lines) {
+  const q = { type: "single", question: lines[0].replace("【单选】", "").trim(), options: [], answer: "" };
+  lines.slice(1).forEach(l => {
+    if (/答案[：:]/.test(l)) q.answer = l.split(/[：:]/)[1]?.trim().toUpperCase() || "";
+    else if (/^[A-Za-z][.．、]/.test(l)) q.options.push(l.trim());
+  });
+  return (q.options.length && q.answer) ? q : null;
+}
+
+function parseMulti(lines) {
+  const q = { type: "multiple", question: lines[0].replace("【多选】", "").trim(), options: [], answer: [] };
+  lines.slice(1).forEach(l => {
+    if (/答案[：:]/.test(l)) {
+      const a = l.split(/[：:]/)[1]?.trim() || "";
+      q.answer = a.split("").filter(c => /[A-Za-z]/.test(c)).map(c => c.toUpperCase());
+    } else if (/^[A-Za-z][.．、]/.test(l)) q.options.push(l.trim());
+  });
+  return (q.options.length && q.answer.length) ? q : null;
+}
+
+function parseSubject(lines) {
+  const q = { type: "subjective", question: lines[0].replace("【主观】", "").trim(), answer: "" };
+  lines.slice(1).forEach(l => {
+    if (/参考答案[：:]/.test(l)) q.answer = l.split(/[：:]/)[1]?.trim() || "";
+    else if (q.answer) q.answer += "\n" + l;
+  });
+  return q;
+}
+
+/* ══════════════════════════════════════
+   BANK RENDER
+══════════════════════════════════════ */
+function renderBank() {
+  const box = document.getElementById("bankList");
+  if (data.length === 0) {
+    box.innerHTML = `<div class="bank-empty"><div class="icon">📂</div>还没有题库<br>点右上角导入一套题吧</div>`;
+    return;
+  }
+  box.innerHTML = "";
+  data.forEach((bank, i) => {
+    const prog = getProgress(i);
+    const answered = prog.answered || 0;
+    const total = bank.questions.length;
+    const pct = total ? Math.round((answered / total) * 100) : 0;
+    const metaText = prog.done
+      ? `✅ 已完成  上次得分 ${prog.lastScore || "—"}`
+      : (answered > 0 ? `进度 ${pct}%  已做 ${answered}/${total} 题` : `共 ${total} 题`);
+
+    const card = document.createElement("div");
+    card.className = "quiz-card";
+    card.innerHTML = `
+      <div class="qc-icon">📝</div>
+      <div class="qc-info">
+        <div class="qc-title">${escHtml(bank.title)}</div>
+        <div class="qc-meta">${metaText}</div>
+      </div>
+      <div class="card-actions" onclick="event.stopPropagation()">
+        <button class="card-btn" onclick="renameBank(${i})">改名</button>
+        <button class="card-btn danger" onclick="confirmDelete(${i})">删除</button>
+      </div>
+      <div class="qc-progress"><div class="qc-progress-bar" style="width:${pct}%"></div></div>
+    `;
+    card.addEventListener("click", (e) => {
+      addRipple(card, e);
+      openBankCard(i);
+    });
+    box.appendChild(card);
+
+    // wrong bank sub-card
+    const wrongCount = (bank.wrongBank || []).length;
+    if (wrongCount > 0) {
+      const wcard = document.createElement("div");
+      wcard.className = "wrong-bank-card";
+      wcard.innerHTML = `
+        <div class="wbc-icon">❌</div>
+        <div class="wbc-info">
+          <div class="wbc-title">错题集</div>
+          <div class="wbc-meta">${wrongCount} 道错题待攻克</div>
+        </div>
+        <div class="wbc-arrow">›</div>
+      `;
+      wcard.addEventListener("click", (e) => {
+        addRipple(wcard, e);
+        startWrongBank(i);
+      });
+      box.appendChild(wcard);
+    }
+  });
+}
+
+/* ══════════════════════════════════════
+   RENAME / DELETE
+══════════════════════════════════════ */
+let renamingIdx = -1, deletingIdx = -1;
+
+function renameBank(i) {
+  renamingIdx = i;
+  document.getElementById("renameInput").value = data[i].title;
+  openModal("renameModal");
+  setTimeout(() => document.getElementById("renameInput").focus(), 150);
+}
+function doRename() {
+  const val = document.getElementById("renameInput").value.trim();
+  if (!val) { toast("名称不能为空"); return; }
+  data[renamingIdx].title = val;
+  saveData(); closeModal("renameModal"); renderBank();
+}
+
+function confirmDelete(i) {
+  deletingIdx = i;
+  document.getElementById("deleteTitle").textContent = data[i].title;
+  openModal("deleteModal");
+}
+function doDelete() {
+  localStorage.removeItem("progress_" + deletingIdx);
+  for (let j = deletingIdx + 1; j < data.length; j++) {
+    const val = localStorage.getItem("progress_" + j);
+    if (val !== null) localStorage.setItem("progress_" + (j - 1), val);
+    else localStorage.removeItem("progress_" + (j - 1));
+  }
+  localStorage.removeItem("progress_" + (data.length - 1));
+  data.splice(deletingIdx, 1);
+  saveData(); closeModal("deleteModal"); renderBank(); toast("已删除");
+}
+
+/* ══════════════════════════════════════
+   PROGRESS STORAGE
+══════════════════════════════════════ */
+function getProgress(i) {
+  try { return JSON.parse(localStorage.getItem("progress_" + i) || "{}"); } catch { return {}; }
+}
+function saveProgress() {
+  if (isWrongMode) return; // wrong bank uses a snapshot, never overwrite real progress
+  const prog = getProgress(currentIdx);
+  prog.order = questionOrder;
+  prog.userAnswers = userAnswers;
+  prog.answered = Object.keys(userAnswers).filter(k => !k.endsWith("_correct")).length;
+  prog.done = false;
+  localStorage.setItem("progress_" + currentIdx, JSON.stringify(prog));
+}
+function markDone(scoreStr) {
+  const prog = getProgress(currentIdx);
+  prog.done = true;
+  prog.lastScore = scoreStr;
+  localStorage.setItem("progress_" + currentIdx, JSON.stringify(prog));
+}
+
+/* ══════════════════════════════════════
+   WRONG BANK
+══════════════════════════════════════ */
+function getWrongBank(bankIdx) {
+  return data[bankIdx].wrongBank || [];
+}
+
+function addToWrongBank(bankIdx, q) {
+  if (!data[bankIdx].wrongBank) data[bankIdx].wrongBank = [];
+  // deduplicate by question text
+  const exists = data[bankIdx].wrongBank.some(w => w.question === q.question);
+  if (!exists) data[bankIdx].wrongBank.push(q);
+  saveData();
+}
+
+function removeFromWrongBank(bankIdx, q) {
+  if (!data[bankIdx].wrongBank) return;
+  data[bankIdx].wrongBank = data[bankIdx].wrongBank.filter(w => w.question !== q.question);
+  saveData();
+}
+
+let isWrongMode = false; // true when practicing wrong bank
+
+function startWrongBank(i) {
+  currentIdx = i;
+  currentBank = { title: data[i].title + " · 错题集", questions: [...data[i].wrongBank] };
+  isWrongMode = true;
+  questionOrder = makeOrder(currentBank.questions.length, true);
+  userAnswers = {};
+  qIndex = 0;
+  document.getElementById("quizBankName").textContent = currentBank.title;
+  showPage("quiz");
+  renderQ("next");
+}
+
+/* ══════════════════════════════════════
+   QUIZ STATE
+══════════════════════════════════════ */
+let currentIdx = -1;
+let currentBank = null;
+let questionOrder = [];
+let qIndex = 0;
+let userAnswers = {};
+let pendingIdx = -1;
+
+function curQ() { return currentBank.questions[questionOrder[qIndex]]; }
+
+function openBankCard(i) {
+  const prog = getProgress(i);
+  pendingIdx = i;
+  const hasResumable = prog.order && prog.order.length && !prog.done && prog.answered > 0;
+  if (hasResumable) {
+    document.getElementById("lastPos").textContent = prog.answered;
+    openModal("continueModal");
+  } else {
+    startQuiz(i, false);
+  }
+}
+
+function startQuiz(i, cont) {
+  closeModal("continueModal");
+  currentIdx = i;
+  currentBank = data[i];
+  isWrongMode = false;
+
+  if (cont) {
+    const prog = getProgress(i);
+    questionOrder = prog.order || makeOrder(currentBank.questions.length, false);
+    userAnswers = prog.userAnswers || {};
+    const answeredPositions = Object.keys(userAnswers)
+      .filter(k => !k.endsWith("_correct"))
+      .map(Number);
+    qIndex = answeredPositions.length ? Math.max(...answeredPositions) : 0;
+  } else {
+    questionOrder = makeOrder(currentBank.questions.length, true);
+    userAnswers = {};
+    qIndex = 0;
+    saveProgress();
+  }
+
+  document.getElementById("quizBankName").textContent = currentBank.title;
+  showPage("quiz");
+  renderQ("next");
+}
+
+function makeOrder(len, shuffle) {
+  const arr = Array.from({ length: len }, (_, i) => i);
+  if (shuffle) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+  return arr;
+}
+
+function leaveQuiz() {
+  if (!isWrongMode) saveProgress();
+  isWrongMode = false;
+  showBank();
+}
+
+/* ══════════════════════════════════════
+   RENDER QUESTION
+══════════════════════════════════════ */
+function renderQ(dir) {
+  const total = questionOrder.length;
+  if (qIndex >= total) {
+    doFinish();
+    return;
+  }
+
+  const q = curQ();
+  document.getElementById("quizPos").textContent = `第 ${qIndex + 1} / ${total} 题`;
+  document.getElementById("progressFill").style.width = `${(qIndex / total) * 100}%`;
+
+  renderDots(total);
+
+  const box = document.getElementById("questionBox");
+  box.innerHTML = "";
+
+  const card = document.createElement("div");
+  card.className = "question-card";
+
+  // slide direction: next → slide in from right, prev → slide in from left
+  if (dir === "prev") card.classList.add("slide-in-left");
+  else card.classList.add("slide-in-right");
+
+  const tagMap = {
+    single: ["单选", "tag-single"],
+    multiple: ["多选", "tag-multiple"],
+    subjective: ["主观", "tag-subjective"]
+  };
+  const [tagText, tagClass] = tagMap[q.type] || ["题目", "tag-single"];
+  card.innerHTML = `
+    <span class="question-type-tag ${tagClass}">${tagText}</span>
+    <div class="question-text">${escHtml(q.question)}</div>
+  `;
+
+  if (q.type === "single") renderSingle(card, q);
+  else if (q.type === "multiple") renderMultiple(card, q);
+  else renderSubjective(card, q);
+
+  box.appendChild(card);
+  box.scrollTop = 0;
+}
+
+function renderDots(total) {
+  const wrap = document.getElementById("qDots");
+  wrap.innerHTML = "";
+  for (let i = 0; i < total; i++) {
+    const d = document.createElement("div");
+    d.className = "q-dot";
+    const c = userAnswers[i + "_correct"];
+    const wasPrev = wrap.children[i] ? wrap.children[i].classList.contains("correct") : false;
+    if (c === true) {
+      d.classList.add("correct");
+      if (!wasPrev) { d.classList.add("dot-pop"); d.addEventListener("animationend", () => d.classList.remove("dot-pop"), {once:true}); }
+    }
+    else if (c === false) d.classList.add("wrong");
+    if (i === qIndex) d.classList.add("current");
+    d.onclick = () => {
+      const dir = i > qIndex ? "next" : "prev";
+      qIndex = i;
+      renderQ(dir);
+    };
+    wrap.appendChild(d);
+  }
+}
+
+/* ── Single ── */
+function renderSingle(card, q) {
+  const wrap = document.createElement("div");
+  wrap.className = "options-wrap";
+  const isAnswered = userAnswers[qIndex + "_correct"] !== undefined;
+
+  q.options.forEach(opt => {
+    const letter = opt.charAt(0).toUpperCase();
+    const optText = opt.slice(opt.search(/[.．、]/) + 1).trim();
+    const div = document.createElement("div");
+    div.className = "option" + (isAnswered ? " disabled" : "");
+
+    div.innerHTML = `<span class="opt-letter">${letter}</span><span class="opt-text">${escHtml(optText)}</span><span class="opt-icon"></span>`;
+
+    const isCorrectOpt = letter === q.answer.toUpperCase();
+    const userPick = userAnswers[qIndex];
+
+    if (isAnswered) {
+      if (isCorrectOpt) {
+        div.classList.add("opt-green");
+        div.querySelector(".opt-icon").textContent = "✓";
+      }
+      if (userPick === letter && !isCorrectOpt) {
+        div.classList.add("opt-red");
+        div.querySelector(".opt-icon").textContent = "✗";
+      }
+    } else {
+      div.onclick = () => {
+        wrap.querySelectorAll(".option").forEach(o => o.classList.remove("opt-selected"));
+        div.classList.add("opt-selected");
+
+        const correct = letter === q.answer.toUpperCase();
+        userAnswers[qIndex] = letter;
+        userAnswers[qIndex + "_correct"] = correct;
+        saveProgress();
+
+        wrap.querySelectorAll(".option").forEach(o => {
+          o.classList.add("disabled");
+          o.onclick = null;
+          const l = o.querySelector(".opt-letter").textContent.toUpperCase();
+          const icon = o.querySelector(".opt-icon");
+          if (l === q.answer.toUpperCase()) {
+            o.classList.add("opt-green");
+            icon.textContent = "✓";
+            o.classList.add("opt-bounce");
+            o.addEventListener("animationend", () => o.classList.remove("opt-bounce"), {once:true});
+          } else if (o === div && !correct) {
+            o.classList.add("opt-red");
+            icon.textContent = "✗";
+            o.classList.add("opt-shake");
+            o.addEventListener("animationend", () => o.classList.remove("opt-shake"), {once:true});
+          }
+        });
+
+        renderDots(questionOrder.length);
+        // wrong bank sync
+        if (!isWrongMode) {
+          if (!correct) addToWrongBank(currentIdx, q);
+          else removeFromWrongBank(currentIdx, q);
+        } else if (correct) {
+          // in wrong mode: remove from wrong bank and advance
+          removeFromWrongBank(currentIdx, q);
+        }
+        if (correct) {
+          wrap.querySelectorAll(".opt-selected").forEach(o => o.classList.remove("opt-selected"));
+          setTimeout(() => { qIndex++; renderQ("next"); }, 900);
+        }
+      };
+    }
+    wrap.appendChild(div);
+  });
+  card.appendChild(wrap);
+}
+
+/* ── Multiple ── */
+function renderMultiple(card, q) {
+  const wrap = document.createElement("div");
+  wrap.className = "options-wrap";
+  const isAnswered = userAnswers[qIndex + "_correct"] !== undefined;
+  let selected = Array.isArray(userAnswers[qIndex]) ? [...userAnswers[qIndex]] : [];
+
+  const hint = document.createElement("div");
+  hint.className = "multi-hint";
+  hint.textContent = "多选题，请选择所有正确答案";
+  wrap.appendChild(hint);
+
+  const optEls = [];
+  const btnRef = { el: null }; // forward ref so option onclick can reach the submit button
+
+  q.options.forEach(opt => {
+    const letter = opt.charAt(0).toUpperCase();
+    const optText = opt.slice(opt.search(/[.．、]/) + 1).trim();
+    const div = document.createElement("div");
+    div.className = "option" + (isAnswered ? " disabled" : "");
+    div.dataset.letter = letter;
+
+    div.innerHTML = `<span class="opt-letter">${letter}</span><span class="opt-text">${escHtml(optText)}</span><span class="opt-icon"></span>`;
+
+    if (isAnswered) {
+      const isCorrect = q.answer.includes(letter);
+      const wasSelected = selected.includes(letter);
+      const icon = div.querySelector(".opt-icon");
+      if (isCorrect && wasSelected)       { div.classList.add("opt-green");  icon.textContent = "✓"; }
+      else if (!isCorrect && wasSelected) { div.classList.add("opt-red");    icon.textContent = "✗"; }
+      else if (isCorrect && !wasSelected) {
+        div.classList.add("opt-missed");
+        icon.innerHTML = '<span class="missed-tag">应选</span>';
+      }
+    } else {
+      if (selected.includes(letter)) div.classList.add("opt-selected");
+
+      div.onclick = () => {
+        if (selected.includes(letter)) {
+          selected = selected.filter(x => x !== letter);
+          div.classList.remove("opt-selected");
+        } else {
+          selected.push(letter);
+          div.classList.add("opt-selected");
+        }
+        userAnswers[qIndex] = [...selected];
+        saveProgress();
+        if (btnRef.el) btnRef.el.disabled = selected.length === 0;
+      };
+    }
+    optEls.push(div);
+    wrap.appendChild(div);
+  });
+
+  card.appendChild(wrap);
+
+  if (!isAnswered) {
+    const submitWrap = document.createElement("div");
+    submitWrap.className = "submit-btn-wrap";
+    const submitBtn = document.createElement("button");
+    submitBtn.className = "btn";
+    submitBtn.textContent = "确认提交";
+    submitBtn.disabled = selected.length === 0;
+    btnRef.el = submitBtn;
+
+    submitBtn.onclick = () => {
+      if (selected.length === 0) return;
+      const correct = q.answer.length === selected.length && selected.every(x => q.answer.includes(x));
+      userAnswers[qIndex] = [...selected];
+      userAnswers[qIndex + "_correct"] = correct;
+      saveProgress();
+
+      optEls.forEach((o, idx) => {
+        o.onclick = null;
+        o.classList.add("disabled");
+        o.classList.remove("opt-selected");
+        const l = o.dataset.letter;
+        const icon = o.querySelector(".opt-icon");
+        const isCorrect = q.answer.includes(l);
+        const wasSelected = selected.includes(l);
+
+        setTimeout(() => {
+          o.classList.add("reveal");
+          if (isCorrect && wasSelected) {
+            o.classList.add("opt-green"); icon.textContent = "✓";
+            o.classList.add("opt-bounce");
+            o.addEventListener("animationend", () => o.classList.remove("opt-bounce"), {once:true});
+          } else if (!isCorrect && wasSelected) {
+            o.classList.add("opt-red"); icon.textContent = "✗";
+            o.classList.add("opt-shake");
+            o.addEventListener("animationend", () => o.classList.remove("opt-shake"), {once:true});
+          } else if (isCorrect && !wasSelected) {
+            o.classList.add("opt-missed");
+            icon.innerHTML = '<span class="missed-tag">应选</span>';
+          }
+        }, idx * 65);
+      });
+
+      // build summary
+      const wrongSelected = selected.filter(l => !q.answer.includes(l));
+      const missed = q.answer.filter(l => !selected.includes(l));
+      const summaryEl = document.createElement("div");
+      summaryEl.className = "answer-summary";
+
+      const delay = optEls.length * 65 + 80;
+      setTimeout(() => {
+        if (correct) {
+          summaryEl.classList.add("summary-correct");
+          summaryEl.textContent = "✓ 回答正确！";
+        } else if (wrongSelected.length > 0 && missed.length > 0) {
+          summaryEl.classList.add("summary-mixed");
+          summaryEl.textContent = `错选了 ${wrongSelected.join("、")}，漏选了 ${missed.join("、")}`;
+        } else if (wrongSelected.length > 0) {
+          summaryEl.classList.add("summary-wrong");
+          summaryEl.textContent = `✗ 错选了：${wrongSelected.join("、")}`;
+        } else {
+          summaryEl.classList.add("summary-mixed");
+          summaryEl.textContent = `漏选了：${missed.join("、")}`;
+        }
+        wrap.appendChild(summaryEl);
+      }, delay);
+
+      submitBtn.remove();
+      renderDots(questionOrder.length);
+      // wrong bank sync
+      if (!isWrongMode) {
+        if (!correct) addToWrongBank(currentIdx, q);
+        else removeFromWrongBank(currentIdx, q);
+      } else if (correct) {
+        removeFromWrongBank(currentIdx, q);
+      }
+      if (correct) {
+        wrap.querySelectorAll(".opt-selected").forEach(o => o.classList.remove("opt-selected"));
+        setTimeout(() => { qIndex++; renderQ("next"); }, delay + 900);
+      }
+    };
+    submitWrap.appendChild(submitBtn);
+    card.appendChild(submitWrap);
+  } else {
+    // show summary when revisiting answered question
+    const wrongSelected = selected.filter(l => !q.answer.includes(l));
+    const missed = q.answer.filter(l => !selected.includes(l));
+    const correct = userAnswers[qIndex + "_correct"];
+    const summaryEl = document.createElement("div");
+    summaryEl.className = "answer-summary";
+
+    if (correct) {
+      summaryEl.classList.add("summary-correct");
+      summaryEl.textContent = "✓ 回答正确！";
+    } else if (wrongSelected.length > 0 && missed.length > 0) {
+      summaryEl.classList.add("summary-mixed");
+      summaryEl.textContent = `错选了 ${wrongSelected.join("、")}，漏选了 ${missed.join("、")}`;
+    } else if (wrongSelected.length > 0) {
+      summaryEl.classList.add("summary-wrong");
+      summaryEl.textContent = `✗ 错选了：${wrongSelected.join("、")}`;
+    } else if (missed.length > 0) {
+      summaryEl.classList.add("summary-mixed");
+      summaryEl.textContent = `漏选了：${missed.join("、")}`;
+    }
+    card.appendChild(summaryEl);
+  }
+}
+
+/* ── Subjective ── */
+function renderSubjective(card, q) {
+  const ans = document.createElement("div");
+  ans.className = "subjective-answer";
+  ans.innerHTML = `<div class="subjective-label">📖 参考答案</div>${escHtml(q.answer).replace(/\n/g, "<br>")}`;
+  card.appendChild(ans);
+  if (userAnswers[qIndex + "_correct"] === undefined) {
+    userAnswers[qIndex + "_correct"] = true;
+    saveProgress();
+    renderDots(questionOrder.length);
+  }
+}
+
+/* ── Navigation ── */
+function nextQ() {
+  if (qIndex < questionOrder.length - 1) { qIndex++; renderQ("next"); }
+  else tryFinish();
+}
+function prevQ() {
+  if (qIndex > 0) { qIndex--; renderQ("prev"); }
+}
+
+function tryFinish() {
+  const total = questionOrder.length;
+  const unanswered = questionOrder.filter((_, pos) => userAnswers[pos + "_correct"] === undefined).length;
+  if (unanswered > 0) {
+    document.getElementById("finishModalBody").textContent =
+      `还有 ${unanswered} 道题未作答，是否直接结算？`;
+    openModal("finishModal");
+  } else {
+    doFinish();
+  }
+}
+
+function confirmFinish() {
+  closeModal("finishModal");
+  doFinish();
+}
+
+function doFinish() {
+  if (isWrongMode) {
+    isWrongMode = false;
+    const remaining = (data[currentIdx].wrongBank || []).length;
+    toast(remaining === 0 ? "🎉 错题全部清零！" : `本轮完成！还剩 ${remaining} 道错题`);
+    renderBank();
+    showPage("bank");
+  } else {
+    showResult();
+  }
+}
+
+/* ══════════════════════════════════════
+   RESULT
+══════════════════════════════════════ */
+function showResult() {
+  const total = questionOrder.length;
+  let correctCount = 0;
+  const wrongList = [];
+
+  questionOrder.forEach((origIdx, pos) => {
+    const q = currentBank.questions[origIdx];
+    const c = userAnswers[pos + "_correct"];
+    if (c === true) {
+      correctCount++;
+    } else if (c === false) {
+      wrongList.push({ q, pos, origIdx });
+    }
+  });
+
+  const pct = Math.round((correctCount / total) * 100);
+  const scoreStr = `${correctCount}/${total}`;
+  markDone(scoreStr);
+
+  const emoji = pct === 100 ? "🏆" : pct >= 80 ? "🎉" : pct >= 60 ? "👍" : "💪";
+  const singleN = currentBank.questions.filter(q => q.type === "single").length;
+  const multiN  = currentBank.questions.filter(q => q.type === "multiple").length;
+  const subjN   = currentBank.questions.filter(q => q.type === "subjective").length;
+
+  let wrongHtml = "";
+  if (wrongList.length > 0) {
+    const items = wrongList.map(({ q, pos }) => {
+      const userAns = userAnswers[pos];
+      const userStr = Array.isArray(userAns) ? userAns.join("、") : (userAns || "—");
+      const correctStr = Array.isArray(q.answer) ? q.answer.join("、") : q.answer;
+      return `<div class="wrong-item">
+        <div class="wrong-q">${escHtml(q.question)}</div>
+        <div class="wrong-row">你的答案：<span class="hl-red">${escHtml(userStr)}</span></div>
+        <div class="wrong-row">正确答案：<span class="hl-green">${escHtml(correctStr)}</span></div>
+      </div>`;
+    }).join("");
+    wrongHtml = `<div class="wrong-review-title">❌ 错题回顾（${wrongList.length} 题）</div>${items}`;
+  }
+
+  document.getElementById("resultContent").innerHTML = `
+    <div class="result-card">
+      <div class="result-emoji">${emoji}</div>
+      <div class="result-score">${correctCount} / ${total}</div>
+      <div class="result-label">答对题数 / 总题数</div>
+      <div class="result-pct">${pct}%</div>
+      <div class="result-detail">
+        单选 ${singleN} 题 · 多选 ${multiN} 题 · 主观 ${subjN} 题
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:20px">
+      <button class="btn secondary" style="flex:1" onclick="startQuiz(currentIdx, false)">🔀 重新练习</button>
+      <button class="btn" style="flex:1" onclick="leaveResult()">返回题库</button>
+    </div>
+    ${wrongHtml}
+  `;
+  showPage("result");
+}
+
+function leaveResult() { renderBank(); showPage("bank"); }
+
+/* ══════════════════════════════════════
+   FILE IMPORT
+══════════════════════════════════════ */
+// PDF.js worker
+if (typeof pdfjsLib !== "undefined") {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
+
+// drag-and-drop
+(function() {
+  const drop = document.getElementById("fileDrop");
+  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("drag-over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("drag-over"));
+  drop.addEventListener("drop", e => {
+    e.preventDefault();
+    drop.classList.remove("drag-over");
+    const f = e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+})();
+
+function setFileStatus(type, msg) {
+  const el = document.getElementById("fileStatus");
+  el.className = "file-status " + type;
+  el.textContent = msg;
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  const ext = file.name.split(".").pop().toLowerCase();
+  if (!["txt", "docx", "pdf"].includes(ext)) {
+    setFileStatus("err", "不支持该格式，请上传 .txt、.docx 或 .pdf");
+    return;
+  }
+  setFileStatus("loading", "⏳ 正在提取文本…");
+  try {
+    let text = "";
+    if (ext === "txt") {
+      text = await readAsText(file);
+    } else if (ext === "docx") {
+      text = await extractDocx(file);
+    } else {
+      text = await extractPdf(file);
+    }
+    text = text.trim();
+    if (!text) { setFileStatus("err", "未能从文件提取到文字，请检查文件内容（扫描件 PDF 无法提取）"); return; }
+
+    document.getElementById("importText").value = text;
+    if (!document.getElementById("importName").value) {
+      document.getElementById("importName").value = file.name.replace(/\.[^.]+$/, "");
+    }
+    setFileStatus("ok", `✅ 已提取 ${text.length} 字，点击「开始识别」解析题目`);
+  } catch (e) {
+    setFileStatus("err", "提取失败：" + (e.message || e));
+  }
+}
+
+function readAsText(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsText(file, "UTF-8");
+  });
+}
+
+async function extractDocx(file) {
+  if (typeof mammoth === "undefined") throw new Error("mammoth.js 未加载，请检查网络连接");
+  const buf = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer: buf });
+  return result.value;
+}
+
+async function extractPdf(file) {
+  if (typeof pdfjsLib === "undefined") throw new Error("PDF.js 未加载，请检查网络连接");
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let text = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items.map(item => item.str).join(" ");
+    text += pageText + "\n";
+  }
+  return text;
+}
+
+function togglePrompt() {
+  const wrap = document.getElementById("promptWrap");
+  wrap.style.display = wrap.style.display === "none" ? "block" : "none";
+}
+
+/* ══════════════════════════════════════
+   IMPROVED SMART PARSE ENGINE v2
+   改进点：
+   1. cleanText 加强（全角、页眉页脚、断行修复、PDF空格）
+   2. 解析段剥离（先切掉解析，避免干扰答案识别）
+   3. 状态机解析单题（题干/选项/答案/解析 四状态）
+   4. 答案识别加强（口语化表达、解析内反推、多选格式）
+   5. 选项识别加强（①②③、A：格式、同行拆分加强）
+   6. 题型判断加强（选项数、答案长度双重验证）
+   7. 置信度评分细化
+══════════════════════════════════════ */
+
+// ── 阶段零：文本预处理 ──
+function cleanText(raw) {
+  let t = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  // 全角转半角（字母、数字、常用符号）
+  t = t.replace(/[Ａ-Ｚ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  t = t.replace(/[ａ-ｚ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  t = t.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  t = t.replace(/．/g, ".").replace(/，/g, ",").replace(/；/g, ";");
+  t = t.replace(/：/g, ":").replace(/（/g, "(").replace(/）/g, ")");
+  t = t.replace(/【/g, "[").replace(/】/g, "]");
+  t = t.replace(/[""]/g, '"').replace(/['']/g, "'");
+  t = t.replace(/、/g, "、"); // 保留顿号，但统一
+
+  // 删除页眉页脚行（页码、文档名重复行）
+  const lineArr = t.split("\n");
+  // 找重复超过3次的短行（页眉页脚特征）
+  const lineCount = {};
+  lineArr.forEach(l => {
+    const s = l.trim();
+    if (s.length > 0 && s.length < 30) lineCount[s] = (lineCount[s] || 0) + 1;
+  });
+  const repeatedLines = new Set(Object.keys(lineCount).filter(k => lineCount[k] >= 3));
+  
+  const filtered = lineArr.filter(l => {
+    const s = l.trim();
+    if (repeatedLines.has(s)) return false;
+    if (/^第\s*\d+\s*页/.test(s) || /共\s*\d+\s*页/.test(s)) return false;
+    if (/^[　\s]*$/.test(s) && s.length > 0) return false; // 全空格行
+    return true;
+  });
+  t = filtered.join("\n");
+
+  // 删除分值标注（不干扰题号识别）
+  t = t.replace(/[(（]\s*(每题|共|各)?\s*\d+(\.\d+)?\s*分\s*[)）]/g, "");
+  t = t.replace(/\[\s*(每题|共|各)?\s*\d+(\.\d+)?\s*分\s*\]/g, "");
+
+  // PDF 提取常见问题：修复被空格断开的单词/选项
+  // "A . 选项内容" → "A.选项内容"
+  t = t.replace(/^([A-Z])\s+[.．]\s*/gm, "$1.");
+
+  // 同行多选项拆分加强：支持更多间距格式
+  // "A.xxx  B.xxx  C.xxx" 或 "A.xxx B.xxx" (单空格但字母+点)
+  t = t.replace(/[ \t]{2,}([B-Z])[.．、:：]\s*/g, "\n$1.");
+  // 行内 (A)xxx (B)xxx 格式
+  t = t.replace(/\s+\(([B-Z])\)\s*/g, "\n($1) ");
+
+  // ①②③ 数字圆圈选项转换为 A B C（最多支持到⑧）
+  const circleMap = { "①":"A","②":"B","③":"C","④":"D","⑤":"E","⑥":"F","⑦":"G","⑧":"H" };
+  t = t.replace(/[①-⑧]/g, c => (circleMap[c] || c) + ".");
+
+  // 压缩多余空行
+  t = t.replace(/\n{3,}/g, "\n\n");
+
+  // 去行首行尾空格
+  t = t.split("\n").map(l => l.trim()).join("\n");
+
+  // 启发式断行：句末紧跟题号时插入换行
+  t = t.replace(/([。？！…])(\d+[.．、）)]\s)/g, "$1\n$2");
+  t = t.replace(/(\d+[.．、）)]\s)(\d+[.．、）)]\s)/g, "$1\n$2");
+
+  return t.trim();
+}
+
+// ── 解析段剥离 ──
+// 返回 { clean: 去掉解析后的文本, analysisText: 解析原文 }
+function stripAnalysis(text) {
+  const lines = text.split("\n");
+  const analysisStartRe = /^(解析|[【\[]解析[】\]]|解题思路|题目解析|答案解析|【分析】|解答)[：:]/;
+  const analysisOnlyRe  = /^(解析|[【\[]解析[】\]])[：:]?\s*$/;
+  
+  const cleanLines = [];
+  const analysisLines = [];
+  let inAnalysis = false;
+  let analysisDepth = 0; // 连续解析行计数
+
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    // 遇到新题号时重置解析状态
+    if (/^\d+[.．、）)]\s/.test(l) || /^第\d+[题道]/.test(l)) {
+      inAnalysis = false;
+      analysisDepth = 0;
+    }
+    if (analysisStartRe.test(l) || analysisOnlyRe.test(l)) {
+      inAnalysis = true;
+      analysisDepth = 0;
+      analysisLines.push(l);
+    } else if (inAnalysis) {
+      analysisDepth++;
+      // 超过5行还没遇到新题号，可能解析结束了
+      if (analysisDepth > 8) inAnalysis = false;
+      else analysisLines.push(l);
+    } else {
+      cleanLines.push(l);
+    }
+  }
+  return { clean: cleanLines.join("\n"), analysisText: analysisLines.join("\n") };
+}
+
+// ── 阶段一：文档结构扫描 ──
+function scanStructure(text) {
+  const lines = text.split("\n");
+
+  // 1a 大节标题识别（更全的关键词）
+  const sectionTypeMap = {
+    "单选": "single", "单项": "single", "单择": "single",
+    "多选": "multiple", "多项": "multiple", "多择": "multiple",
+    "判断": "judge", "是非": "judge", "对错": "judge",
+    "填空": "subjective", "简答": "subjective", "论述": "subjective",
+    "主观": "subjective", "问答": "subjective", "计算": "subjective"
+  };
+  const sections = [];
+  lines.forEach((l, i) => {
+    // 大节标题：一、单选题 / 第一部分 多选题
+    const m = l.match(/^[一二三四五六七八九十]+[、.．]\s*(.*)/);
+    if (m) {
+      for (const [kw, type] of Object.entries(sectionTypeMap)) {
+        if (m[1].includes(kw)) { sections.push({ lineIdx: i, type }); break; }
+      }
+    }
+    // 直接以题型开头的行
+    for (const [kw, type] of Object.entries(sectionTypeMap)) {
+      if (l.startsWith(kw) && l.includes("题")) { sections.push({ lineIdx: i, type }); break; }
+    }
+  });
+
+  // 1b 题号格式识别（更全的格式）
+  const fmtPatterns = [
+    { name: "typeSlash",  re: /^(单项选择题|多项选择题|单选题|多选题|判断题)\s*\d+[/／]/ },
+    { name: "dot",        re: /^\d+[.．]\s?/ },
+    { name: "pause",      re: /^\d+[、]\s?/ },
+    { name: "rparen",     re: /^\d+[)）]\s?/ },
+    { name: "lparen",     re: /^[(（]\d+[)）]\s?/ },
+    { name: "nth",        re: /^第\d+[题道]\s?/ },
+    { name: "Q",          re: /^[Qq]\d+[.．]\s?/ },
+    { name: "colon",      re: /^\d+[：:]\s?/ },
+  ];
+  const counts = {};
+  fmtPatterns.forEach(f => { counts[f.name] = 0; });
+  lines.forEach(l => {
+    for (const f of fmtPatterns) {
+      if (f.re.test(l)) { counts[f.name]++; break; }
+    }
+  });
+  const best = fmtPatterns.reduce((a, b) => (counts[a.name] >= counts[b.name] ? a : b));
+  const numberFormat = counts[best.name] >= 1 ? best : null;
+
+  // 1c 文末答案区识别
+  const tail = lines.slice(Math.max(0, lines.length - Math.ceil(lines.length * 0.3)));
+  const trailingAnswers = [];
+
+  const numAnsRe = /(\d+)\s*[.、．）)]\s*([A-Z]{1,6})\b/g;
+  const numAnsRaw = [];
+  let m, numAnsStr = tail.join("\n");
+  while ((m = numAnsRe.exec(numAnsStr)) !== null) numAnsRaw.push({ num: +m[1], answer: m[2] });
+
+  if (numAnsRaw.length >= 3) {
+    const nums = numAnsRaw.map(x => x.num);
+    const sorted = [...nums].sort((a, b) => a - b);
+    const consecutive = sorted.every((v, i) => i === 0 || v === sorted[i-1] + 1);
+    if (consecutive) numAnsRaw.forEach(x => trailingAnswers.push(x));
+  }
+
+  if (trailingAnswers.length === 0) {
+    const letterLines = tail.filter(l => /^[A-Z]{3,}$/.test(l.trim()));
+    if (letterLines.length >= 1) {
+      const all = letterLines.join("").split("");
+      all.forEach((c, i) => trailingAnswers.push({ num: i + 1, answer: c }));
+    }
+  }
+
+  return { sections, trailingAnswers, numberFormat };
+}
+
+// ── 阶段二：题目切割 ──
+function splitQuestions(text, numberFormat) {
+  if (!numberFormat) return null;
+  const lines = text.split("\n");
+  const re = numberFormat.re;
+
+  const positions = [];
+  lines.forEach((l, i) => {
+    if (re.test(l)) {
+      const slashM = l.match(/[题]\s*(\d+)[/／]/);
+      if (slashM) {
+        positions.push({ lineIdx: i, num: +slashM[1] });
+      } else {
+        const numM = l.match(/^[^0-9]*(\d+)/);
+        if (numM) positions.push({ lineIdx: i, num: +numM[1] });
+      }
+    }
+  });
+  if (positions.length < 1) return null;
+
+  // 连续性验证
+  let bestStart = 0, bestLen = 1, cur = 0, curLen = 1;
+  for (let i = 1; i < positions.length; i++) {
+    if (positions[i].num === positions[i-1].num + 1) {
+      curLen++;
+      if (curLen > bestLen) { bestLen = curLen; bestStart = cur; }
+    } else {
+      cur = i; curLen = 1;
+    }
+  }
+  const valid = positions.slice(bestStart, bestStart + bestLen);
+  if (valid.length < 1) return null;
+
+  const blocks = [];
+  for (let i = 0; i < valid.length; i++) {
+    const from = valid[i].lineIdx;
+    const to = (i + 1 < valid.length) ? valid[i+1].lineIdx : lines.length;
+    blocks.push({ num: valid[i].num, text: lines.slice(from, to).join("\n") });
+  }
+  return blocks;
+}
+
+// ── 阶段三：状态机解析单题 ──
+function parseOneQuestion(block, sectionType, trailingAnswers) {
+  // 先剥离解析段
+  const { clean: blockText, analysisText } = stripAnalysis(block.text);
+  const allLines = blockText.split("\n").map(l => l.trim()).filter(l => l);
+  if (allLines.length === 0) return null;
+
+  // 选项行识别函数（支持多种格式）
+  const optLineRe  = /^([A-Z])[.．、）)\s。]\s*(.*)/;
+  const optLineRe2 = /^[(（]([A-Z])[)）]\s*(.*)/;
+  function parseOptLine(l) {
+    let m = l.match(optLineRe);
+    if (m) return { letter: m[1], content: m[2] };
+    m = l.match(optLineRe2);
+    if (m) return { letter: m[1], content: m[2] };
+    return null;
+  }
+
+  // 答案行识别函数
+  const ansLineRe = /^(正确答案|答案|[【\[]答案[】\]]|参考答案|【答案】|[答案])[：:]\s*(.+)/;
+  function parseAnsLine(l) {
+    const m = l.match(ansLineRe);
+    if (m) return m[2].trim();
+    return null;
+  }
+
+  // ── 状态机 ──
+  // 状态：STEM(题干) → OPTIONS(选项) → ANSWER(答案) → DONE
+  // 每行归类后进入对应状态
+  const STATE = { STEM: 0, OPTIONS: 1, ANSWER: 2 };
+  let state = STATE.STEM;
+
+  const stemLines = [];
+  const options = [];
+  let rawAnswer = null;
+  let derivedType = sectionType;
+
+  // 判断第一行是否纯题号行
+  const firstLineIsHeader =
+    /^(单项选择题|多项选择题|单选题|多选题|判断题)\s*\d+[/／]\d+/.test(allLines[0]) ||
+    /^第\d+[题道]\s*$/.test(allLines[0]) ||
+    /^Q\d+[.．]\s*$/.test(allLines[0]) ||
+    /^\d+[.．、）)]\s*$/.test(allLines[0]);
+
+  // 从题号行读取题型
+  if (firstLineIsHeader) {
+    if (/多项选择题|多选题/.test(allLines[0])) derivedType = "multiple";
+    else if (/单项选择题|单选题/.test(allLines[0])) derivedType = "single";
+    else if (/判断题/.test(allLines[0])) derivedType = "judge";
+  }
+
+  const startIdx = firstLineIsHeader ? 1 : 0;
+
+  for (let i = startIdx; i < allLines.length; i++) {
+    const l = allLines[i];
+
+    // 优先检测答案行（任何状态下都可能出现）
+    const ansVal = parseAnsLine(l);
+    if (ansVal !== null) {
+      rawAnswer = ansVal;
+      state = STATE.ANSWER;
+      continue;
+    }
+
+    // 检测选项行
+    const opt = parseOptLine(l);
+
+    if (state === STATE.STEM) {
+      if (opt && opt.letter === "A") {
+        // 进入选项状态
+        state = STATE.OPTIONS;
+        let content = opt.content;
+        // 合并续行
+        while (i + 1 < allLines.length) {
+          const next = allLines[i + 1];
+          if (parseOptLine(next) || parseAnsLine(next)) break;
+          content += " " + next;
+          i++;
+        }
+        options.push("A." + content.trim());
+      } else {
+        // 题干行：去掉题号前缀（只在第一行）
+        if (i === startIdx) {
+          const stripped = l
+            .replace(/^\d+[.．、）)]\s?/, "")
+            .replace(/^[(（]\d+[)）]\s?/, "")
+            .replace(/^第\d+[题道]\s?/, "")
+            .replace(/^[Qq]\d+[.．]\s?/, "")
+            .replace(/^\d+[：:]\s?/, "")
+            .trim();
+          stemLines.push(stripped);
+        } else {
+          stemLines.push(l);
+        }
+      }
+    } else if (state === STATE.OPTIONS) {
+      if (opt) {
+        let content = opt.content;
+        // 合并续行（下一行不是选项行且不是答案行）
+        while (i + 1 < allLines.length) {
+          const next = allLines[i + 1];
+          if (parseOptLine(next) || parseAnsLine(next)) break;
+          content += " " + next;
+          i++;
+        }
+        options.push(opt.letter + "." + content.trim());
+      } else {
+        // 选项区域内的非选项行：可能是选项结束，也可能是续行
+        // 如果该行看起来像孤立答案（单个字母），记录
+        if (/^[A-Z]{1,6}$/.test(l) && !rawAnswer) {
+          rawAnswer = l;
+        }
+        // 否则忽略（已经不在选项状态了）
+        state = STATE.ANSWER;
+      }
+    }
+  }
+
+  // 如果没有进入选项状态，可能选项和题干在一起，再做一次扫描
+  if (options.length === 0 && state === STATE.STEM) {
+    for (let i = startIdx; i < allLines.length; i++) {
+      const opt = parseOptLine(allLines[i]);
+      if (opt) {
+        let content = opt.content;
+        let j = i + 1;
+        while (j < allLines.length) {
+          if (parseOptLine(allLines[j]) || parseAnsLine(allLines[j])) break;
+          content += " " + allLines[j]; j++;
+        }
+        options.push(opt.letter + "." + content.trim());
+        i = j - 1;
+      }
+    }
+  }
+
+  let stem = stemLines.join(" ").trim();
+  if (!stem && allLines.length > 0) {
+    stem = allLines[0].replace(/^\d+[.．、）)]\s?/, "").trim();
+  }
+
+  // ── 答案识别加强 ──
+  const reasons = [];
+  let answer = null;
+  let answerSource = "";
+
+  // 策略 A：题干末尾括号内答案 "(B)" "(ACD)"
+  const stemAnsM = stem.match(/[(]\s*([A-Z]{1,6})\s*[)]\s*$/);
+  if (stemAnsM) {
+    answer = stemAnsM[1];
+    stem = stem.replace(stemAnsM[0], "").trim();
+    answerSource = "A";
+  }
+
+  // 策略 B：rawAnswer（状态机找到的答案行）
+  if (!answer && rawAnswer) {
+    // 提取字母（支持 "ABD" "A、B、D" "A和D" "A,B,D"）
+    const letters = rawAnswer.match(/[A-Z]/g);
+    if (letters && letters.length > 0 && letters.length <= 6) {
+      answer = letters.join("");
+      answerSource = "B";
+    } else if (rawAnswer.length < 50) {
+      // 主观题答案
+      answer = rawAnswer;
+      answerSource = "B";
+    }
+  }
+
+  // 策略 C：从解析段反推答案
+  if (!answer && analysisText) {
+    // "所以选C" "故答案为B" "答案是A" "正确答案是D"
+    const patterns = [
+      /(?:所以|故|因此|综上|所以|可知).*?选([A-Z]{1,6})/,
+      /(?:答案|正确答案)(?:是|为|应选|选)\s*([A-Z]{1,6})/,
+      /选([A-Z]{1,6})(?:项|选项|正确)/,
+      /([A-Z]{1,6})(?:项|选项).*?正确/,
+      /(?:正确的是|正确答案为)\s*([A-Z]{1,6})/,
+    ];
+    for (const p of patterns) {
+      const m2 = analysisText.match(p);
+      if (m2) { answer = m2[1]; answerSource = "C_analysis"; break; }
+    }
+  }
+
+  // 策略 D：文末答案配对
+  if (!answer && trailingAnswers.length > 0) {
+    const ta = trailingAnswers.find(x => x.num === block.num);
+    if (ta) { answer = ta.answer; answerSource = "D"; }
+  }
+
+  // 策略 E：题干末尾口语化 "是B" "为C" "选A"
+  if (!answer) {
+    const trailM = stem.match(/[是为答选选择][（(]?\s*([A-Z])\s*[)）]?\s*$/);
+    if (trailM) {
+      answer = trailM[1];
+      stem = stem.slice(0, stem.lastIndexOf(trailM[0])).trim();
+      answerSource = "E";
+    }
+  }
+
+  // ── 题型判断加强 ──
+  let type = derivedType;
+
+  // 关键词判断
+  if (!type || type === "single") {
+    if (/以下哪些|下列哪些|多项|多个|正确的有|都有|以下.*均|下列.*均|以下.*都|哪几|哪些/.test(stem)) type = "multiple";
+  }
+  if (/判断[题下]|是否正确|正误|下列.*正确.*吗|以下说法.*正确|对还是错/.test(stem)) type = "judge";
+
+  // 选项数判断
+  if (options.length === 2) {
+    const vals = options.map(o => o.replace(/^[A-Z]\./, "").trim());
+    if (vals.every(v => /^(正确|错误|对|错|√|×|是|否|T|F|true|false|对的|错的)$/i.test(v))) type = "judge";
+  }
+
+  // 答案长度辅助判断（多于1个字母 → 多选）
+  if (type === "single" && answer && typeof answer === "string" && answer.length > 1 && /^[A-Z]+$/.test(answer)) {
+    type = "multiple";
+  }
+
+  // 无选项 → 主观题
+  if (!type) {
+    type = options.length >= 2 ? "single" : "subjective";
+  }
+
+  // 判断题统一处理
+  if (type === "judge") {
+    type = "single";
+    if (options.length === 0) options.push("A.正确", "B.错误");
+  }
+
+  // ── 选项清理 ──
+  const cleanedOptions = options.map(opt => {
+    let cleaned = opt.replace(/[(（][^)）]*[\u4e00-\u9fa5][^)）]*[)）]/g, "").trim();
+    cleaned = cleaned.replace(/[\s]*[√✓☑✔☒✗✘×]\s*$/, "").trim();
+    return cleaned;
+  }).filter(Boolean);
+
+  // 题干填空括号清理
+  stem = stem.replace(/[(（]\s{2,}[)）]/g, "（　）").trim();
+
+  // ── 置信度评分细化 ──
+  let deductions = 0;
+  if (!stem || stem.length < 4) return null;
+
+  if (cleanedOptions.length > 0) {
+    const letters = cleanedOptions.map(o => o[0]);
+    const expected = letters.map((_, i) => String.fromCharCode(65 + i));
+    if (JSON.stringify(letters) !== JSON.stringify(expected)) {
+      deductions++;
+      reasons.push("选项不连续");
+    }
+  }
+
+  if (!answer && type !== "subjective") {
+    deductions += 2;
+    reasons.push("答案缺失");
+  }
+  if (answerSource === "D") { deductions++; reasons.push("答案来自文末配对"); }
+  if (answerSource === "C_analysis") reasons.push("答案从解析推断");
+  if (/[■□▪▫●○◆◇]{3,}/.test(stem)) { deductions++; reasons.push("疑似含乱码"); }
+  if (stem.length > 500) { deductions++; reasons.push("题干过长，疑似合并"); }
+  if (cleanedOptions.length > 0 && answer) {
+    const optLetters = cleanedOptions.map(o => o[0]);
+    const ansLetters = String(answer).split("").filter(c => /[A-Z]/.test(c));
+    if (ansLetters.some(c => !optLetters.includes(c))) {
+      deductions++;
+      reasons.push("答案超出选项范围");
+    }
+  }
+
+  const confidence = deductions >= 2 ? "low" : deductions === 1 ? "medium" : "high";
+
+  if (type === "subjective" && !answer) {
+    answer = "";
+    reasons.push("待补充答案");
+  }
+
+  // ── 最终答案格式化 ──
+  let finalAnswer;
+  if (type === "multiple") {
+    finalAnswer = answer ? String(answer).split("").filter(c => /[A-Z]/.test(c)) : [];
+  } else {
+    finalAnswer = answer || "";
+  }
+
+  return { type, question: stem, options: cleanedOptions, answer: finalAnswer, confidence, reasons };
+}
+
+// ── 智能解析主函数 ──
+function smartParse(rawText) {
+  const text = cleanText(rawText);
+  const { sections, trailingAnswers, numberFormat } = scanStructure(text);
+  const blocks = splitQuestions(text, numberFormat);
+
+  if (!blocks) return [];
+
+  const textLines = text.split("\n");
+  const parsed = blocks.map(block => {
+    const blockFirstLine = textLines.findIndex(l => {
+      const re = numberFormat ? numberFormat.re : null;
+      return re && re.test(l) && l.match(/\d+/) && +l.match(/\d+/)[0] === block.num;
+    });
+    const sType = sections.reduce((found, sec) => {
+      if (blockFirstLine >= 0 && sec.lineIdx <= blockFirstLine) return sec.type;
+      return found;
+    }, null);
+    return parseOneQuestion(block, sType, trailingAnswers);
+  }).filter(Boolean);
+
+  return parsed;
+}
+
+
+// ── 识别入口 ──
+function startRecognize() {
+  const text = document.getElementById("importText").value.trim();
+  if (!text) { toast("请先输入或上传文本"); return; }
+
+  try {
+    const standard = parseQuestions(text);
+    if (standard.length > 0) {
+      showPreview(standard.map(q => ({ ...q, confidence: "high", reasons: [] })));
+      return;
+    }
+
+    const parsed = smartParse(text);
+    if (parsed.length === 0) {
+      const cleaned = cleanText(text);
+      const { numberFormat } = scanStructure(cleaned);
+      if (!numberFormat) {
+        toast("未找到题号（如 1. 2. 一、 等），请确认文本中有序号，或使用 AI 整理提示词");
+      } else {
+        toast("找到题号但未能解析出题目，可尝试展开 AI 提示词整理文本后重新识别");
+      }
+      return;
+    }
+    showPreview(parsed);
+  } catch (e) {
+    toast("识别出错：" + (e.message || e));
+    console.error("[smartParse error]", e);
+  }
+}
+
+// ── 预览 UI ──
+let _previewData = [];
+
+function showPreview(questions) {
+  _previewData = questions.map((q, i) => ({ ...q, _idx: i, _skip: false }));
+
+  const total = _previewData.length;
+  const single = _previewData.filter(q => q.type === "single").length;
+  const multi  = _previewData.filter(q => q.type === "multiple").length;
+  const subj   = _previewData.filter(q => q.type === "subjective").length;
+  const low    = _previewData.filter(q => q.confidence === "low").length;
+  const noAns  = _previewData.filter(q => q.reasons && q.reasons.includes("待补充答案")).length;
+
+  let statsHtml = `共识别 <strong>${total}</strong> 道题：单选 ${single} · 多选 ${multi} · 主观 ${subj}`;
+  if (noAns > 0) statsHtml += ` · 待补充答案 ${noAns}`;
+  if (low > 0) statsHtml += `<br>⚠ <span style="color:var(--red)">${low} 道低置信度</span>，已标红，可展开编辑后导入`;
+
+  document.getElementById("previewStats").innerHTML = statsHtml;
+  document.getElementById("previewList").innerHTML = "";
+  _previewData.forEach((q, i) => {
+    document.getElementById("previewList").appendChild(renderPreviewItem(q, i));
+  });
+
+  // 低置信度自动展开
+  _previewData.forEach((q, i) => {
+    if (q.confidence === "low") {
+      const el = document.getElementById("pi_" + i);
+      if (el) el.classList.add("open");
+    }
+  });
+
+  // 切换显示区域
+  document.getElementById("previewSection").style.display = "block";
+  // scrollIntoView 在 overflow:auto 容器内失效，手动滚动父容器
+  const sec = document.getElementById("previewSection");
+  const container = sec.closest(".content");
+  if (container) {
+    const offsetTop = sec.offsetTop - (container.offsetTop || 0);
+    container.scrollTo({ top: offsetTop - 16, behavior: "smooth" });
+  } else {
+    sec.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function renderPreviewItem(q, i) {
+  const wrap = document.createElement("div");
+  wrap.className = `preview-item conf-${q.confidence}`;
+  wrap.id = "pi_" + i;
+
+  const tagLabel = q.type === "multiple" ? "多选" : q.type === "subjective" ? "主观" : "单选";
+  const tagClass = q.type === "multiple" ? "multiple" : q.type === "subjective" ? "subjective" : "single";
+  const shortStem = (q.question || "").slice(0, 36) + ((q.question || "").length > 36 ? "…" : "");
+  const badgesHtml = (q.reasons || []).filter(r => r !== "待补充答案").map(r =>
+    `<span class="conf-badge">${escHtml(r)}</span>`).join(" ");
+
+  const head = document.createElement("div");
+  head.className = "preview-item-head";
+  head.innerHTML = `
+    <span class="preview-tag ${tagClass}">${tagLabel}</span>
+    <span class="preview-item-head-text">${escHtml(shortStem)}</span>
+    ${badgesHtml}
+    <span style="color:var(--muted);font-size:12px;flex-shrink:0">▾</span>
+  `;
+  head.onclick = () => wrap.classList.toggle("open");
+
+  // 展开体：可编辑字段
+  const body = document.createElement("div");
+  body.className = "preview-item-body";
+
+  const answerVal = Array.isArray(q.answer) ? q.answer.join("") : (q.answer || "");
+  const optionsHtml = (q.options || []).map((opt, oi) =>
+    `<input class="edit-field" data-pi="${i}" data-opt="${oi}" value="${escHtml(opt)}" placeholder="选项 ${oi}" style="margin-bottom:4px">`
+  ).join("");
+
+  const typeOptions = [
+    `<option value="single" ${q.type === "single" ? "selected" : ""}>单选</option>`,
+    `<option value="multiple" ${q.type === "multiple" ? "selected" : ""}>多选</option>`,
+    `<option value="subjective" ${q.type === "subjective" ? "selected" : ""}>主观</option>`,
+  ].join("");
+
+  body.innerHTML = `
+    <span class="edit-label">题干</span>
+    <textarea class="edit-field" data-pi="${i}" data-field="question" rows="2">${escHtml(q.question || "")}</textarea>
+    <div class="edit-row" style="margin-top:10px">
+      <div style="flex:1">
+        <span class="edit-label" style="margin-top:0">答案</span>
+        <input class="edit-field" data-pi="${i}" data-field="answer" value="${escHtml(answerVal)}" placeholder="如 A 或 ACD">
+      </div>
+      <div>
+        <span class="edit-label" style="margin-top:0">题型</span>
+        <select class="edit-field" data-pi="${i}" data-field="type" style="width:80px">${typeOptions}</select>
+      </div>
+    </div>
+    ${q.options && q.options.length > 0 ? `<span class="edit-label">选项（每行一个）</span>${optionsHtml}` : ""}
+    <div style="display:flex;justify-content:flex-end;margin-top:8px">
+      <button class="preview-skip-btn" onclick="toggleSkip(${i})">跳过此题（不导入）</button>
+    </div>
+  `;
+
+  wrap.appendChild(head);
+  wrap.appendChild(body);
+  return wrap;
+}
+
+function toggleSkip(i) {
+  _previewData[i]._skip = !_previewData[i]._skip;
+  const el = document.getElementById("pi_" + i);
+  if (el) el.classList.toggle("skipped", _previewData[i]._skip);
+  const btn = el.querySelector(".preview-skip-btn");
+  if (btn) btn.textContent = _previewData[i]._skip ? "恢复此题" : "跳过此题（不导入）";
+}
+
+function collectEdits() {
+  return _previewData.filter(q => !q._skip).map(q => {
+    const i = q._idx;
+    const stemEl = document.querySelector(`textarea[data-pi="${i}"][data-field="question"]`);
+    const ansEl  = document.querySelector(`input[data-pi="${i}"][data-field="answer"]`);
+    const typeEl = document.querySelector(`select[data-pi="${i}"][data-field="type"]`);
+    const optEls = document.querySelectorAll(`input[data-pi="${i}"][data-opt]`);
+
+    const stem   = stemEl ? stemEl.value.trim() : q.question;
+    const rawAns = ansEl  ? ansEl.value.trim().toUpperCase() : (Array.isArray(q.answer) ? q.answer.join("") : q.answer || "");
+    const type   = typeEl ? typeEl.value : q.type;
+    const opts   = optEls.length > 0
+      ? Array.from(optEls).map(el => el.value.trim()).filter(Boolean)
+      : q.options;
+
+    let answer;
+    if (type === "multiple") {
+      answer = rawAns.split("").filter(c => /[A-Z]/.test(c));
+    } else if (type === "subjective") {
+      answer = rawAns || "（待补充）";
+    } else {
+      answer = rawAns || "";
+    }
+
+    return { type, question: stem, options: opts, answer };
+  });
+}
+
+function confirmImport() {
+  const questions = collectEdits();
+  if (questions.length === 0) { toast("没有可导入的题目"); return; }
+  const name = document.getElementById("importName").value.trim() || "题库 " + (data.length + 1);
+  data.push({ title: name, questions });
+  saveData();
+  clearImport();
+  toast(`✅ 导入成功！共 ${questions.length} 题`);
+  showBank();
+}
+
+function cancelPreview() {
+  document.getElementById("previewSection").style.display = "none";
+  _previewData = [];
+}
+function escHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+</script>
+
+</body>
+</html>
